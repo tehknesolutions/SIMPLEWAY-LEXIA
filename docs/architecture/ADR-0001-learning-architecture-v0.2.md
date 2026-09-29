@@ -1,6 +1,6 @@
 # ADR-0001 — Lexia Learning Architecture v0.2
 
-Status: PROPOSED — review gate
+Status: ACCEPTED — review corrections applied
 Date: 2026-09-29
 Supersedes: none; refines the GDD/PDD vNext architecture
 
@@ -18,12 +18,13 @@ Lexia adopts an evidence-first, policy-driven architecture.
 
 1. **Curriculum/Content** — authored, versioned, validated definitions.
 2. **Activity Contract** — pedagogical interaction requirements independent of renderer.
-3. **Evidence History** — durable learning events produced from evaluated interactions.
-4. **Capability Projection** — reconstructable learner state derived from evidence.
-5. **Progress Policy** — determines readiness/review/next pedagogical state.
-6. **Session Director** — decides what happens now using curriculum + capability + policy outputs.
-7. **Game Runtime** — renders/executes activities and emits interaction results.
-8. **World/Companion** — project verified progression into fantasy/emotional state.
+3. **Evaluation Policy** — interprets renderer interaction results into pedagogically meaningful evidence.
+4. **Evidence History** — durable immutable learning events produced from evaluated interactions.
+5. **Capability Projection** — reconstructable learner state derived from evidence.
+6. **Progress Policy** — determines readiness/review/next pedagogical state.
+7. **Session Director** — decides what happens now using curriculum + capability + policy outputs.
+8. **Game Runtime** — renders/executes activities and emits interaction results only.
+9. **World/Companion** — project verified progression into fantasy/emotional state.
 
 ### Core invariants
 
@@ -34,6 +35,7 @@ Lexia adopts an evidence-first, policy-driven architecture.
 - `ActivityContract != EvaluationPolicy`.
 - `SessionDirector != LearningPolicy`.
 - `WorldState != LearningAuthority`.
+- Evidence history is append-oriented; persisted evidence events are immutable.
 - Supabase is persistence/adapters, not domain policy.
 
 ## Alpha contracts
@@ -44,26 +46,26 @@ Minimum common envelope:
 
 ```ts
 interface EvidenceEvent {
-  evidenceId: string;
-  learnerId: string;
-  capabilityId: string;
-  dimension: string;
-  activityId: string;
-  activityVersion: string;
-  curriculumVersion: string;
-  occurredAt: string;
-  outcome: "success" | "retry";
-  value?: number;
-  confidence?: number;
-  assistanceLevel?: number;
-  attempts?: number;
-  modality?: string;
-  latencyMs?: number;
-  context?: Record<string, string | number | boolean>;
+  readonly evidenceId: string;
+  readonly learnerId: string;
+  readonly capabilityId: string;
+  readonly dimension: string;
+  readonly activityId: string;
+  readonly activityVersion: string;
+  readonly curriculumVersion: string;
+  readonly occurredAt: string;
+  readonly outcome: "success" | "retry";
+  readonly value?: number;
+  readonly confidence?: number;
+  readonly assistanceLevel?: number;
+  readonly attempts?: number;
+  readonly modality?: string;
+  readonly latencyMs?: number;
+  readonly context?: Readonly<Record<string, string | number | boolean>>;
 }
 ```
 
-Only fields justified by an activity/evaluation contract need to be populated. Data minimization applies to child telemetry.
+Only fields justified by an activity/evaluation contract need to be populated. Data minimization applies to child telemetry. Corrections to durable evidence are represented by new events or an explicit correction mechanism; consumers must not mutate an appended event in place.
 
 ### CapabilityState
 
@@ -79,19 +81,25 @@ Minimum shape:
 
 ```ts
 interface ActivityContract {
-  id: string;
-  version: string;
-  capabilityId: string;
-  dimension: string;
-  family: "listen-choose" | "build-match" | "trace-create";
-  inputModality: readonly string[];
-  responseModality: readonly string[];
-  allowedSupports: readonly string[];
-  evaluationPolicyId: string;
+  readonly id: string;
+  readonly version: string;
+  readonly capabilityId: string;
+  readonly dimension: string;
+  readonly family: "listen-choose" | "build-match" | "trace-create";
+  readonly inputModality: readonly string[];
+  readonly responseModality: readonly string[];
+  readonly allowedSupports: readonly string[];
+  readonly evaluationPolicyId: string;
 }
 ```
 
-Phaser receives a materialized activity instance derived from this contract. It does not know mastery thresholds.
+Phaser receives a materialized activity instance derived from this contract. It does not know mastery thresholds and cannot emit authoritative learning evidence directly.
+
+## Canonical evidence flow
+
+`ActivityContract -> Renderer -> InteractionResult -> EvaluationPolicy -> EvidenceEvent -> EvidenceHistory -> CapabilityState`
+
+The renderer reports what happened. Evaluation policy assigns pedagogical meaning. Only the evaluated output enters durable learning history.
 
 ## Handwriting/tracing specialization
 
@@ -149,8 +157,8 @@ Costs:
 
 ## Gate
 
-If approved, the next implementation increment is intentionally narrow:
+The next implementation increment is intentionally narrow:
 
-`ProgressPolicy(alpha-readiness-v0) + ActivityContract + InteractionResult + listen-choose evaluator -> EvidenceEvent`
+`ProgressPolicy(alpha-readiness-v0) + ActivityContract + InteractionResult + listen-choose EvaluationPolicy -> immutable EvidenceEvent`
 
 Then re-run the A1 vertical slice before adding richer learning dimensions.

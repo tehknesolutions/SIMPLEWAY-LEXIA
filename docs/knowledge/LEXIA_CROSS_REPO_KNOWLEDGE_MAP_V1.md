@@ -1,6 +1,6 @@
 # Lexia Cross-Repo Knowledge Map v1
 
-Status: REVIEW CANDIDATE
+Status: REVIEWED — architecture v0.2 corrections applied
 Date: 2026-09-29
 Product authority: `tehknesolutions/SIMPLEWAY-LEXIA`
 
@@ -49,6 +49,8 @@ Adapt from Drawing: evidence should preserve quality/confidence/assistance infor
 
 Lexia target evidence dimensions should support, where applicable: outcome/value, confidence, assistance level, attempts, modality, latency, context and retention interval. Activity-specific evidence may extend this without collapsing everything into one score.
 
+Durable EvidenceEvents are immutable and append-oriented. Corrections are additional explicit events/mechanisms, never in-place mutation of history.
+
 ### Visuomotor / handwriting
 
 Adapt from Drawing: separate the drawing/tracing tool from the pedagogical method. For Lexia, `Tracing Renderer != Writing Pedagogy`.
@@ -96,6 +98,9 @@ Curriculum Graph -> Progress Policy -> Session Director
                               Interaction Result
                                       |
                                       v
+                              Evaluation Policy
+                                      |
+                                      v
                                Evidence Event
                                       |
                                       v
@@ -113,6 +118,8 @@ Curriculum Graph -> Progress Policy -> Session Director
           next Session policy                    World/Companion projections
 ```
 
+The renderer reports interaction facts only. Evaluation Policy is the authority that maps those facts to pedagogical EvidenceEvents.
+
 ## Guardrails
 
 1. No reference repository becomes Lexia canon by copying code or terminology.
@@ -121,8 +128,9 @@ Curriculum Graph -> Progress Policy -> Session Director
 4. Completion cannot be used as a synonym for mastery.
 5. Capability state must be reconstructable from durable evidence where practical.
 6. Renderer-specific metrics only become learning evidence through an explicit evaluation contract.
-7. Alpha may use simple policies, but provisional policy must be labeled as such.
-8. Child privacy and safety override analytics richness.
+7. Durable EvidenceEvents are immutable after append.
+8. Alpha may use simple policies, but provisional policy must be labeled as such.
+9. Child privacy and safety override analytics richness.
 
 ## Immediate impact
 
