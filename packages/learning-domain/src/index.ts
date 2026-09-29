@@ -6,6 +6,7 @@ export type SkillDimension =
   | "combination";
 
 export type EvidenceOutcome = "success" | "retry";
+export type SkillReadiness = "unseen" | "practicing" | "ready";
 
 export interface LearningEvidence {
   readonly evidenceId: string;
@@ -35,11 +36,8 @@ export interface LearnerModel {
 const emptyDimension = (): DimensionState => ({ successes: 0, retries: 0, lastEvidenceAt: null });
 
 const emptySkill = (): SkillState => ({
-  discrimination: emptyDimension(),
-  recognition: emptyDimension(),
-  association: emptyDimension(),
-  production: emptyDimension(),
-  combination: emptyDimension()
+  discrimination: emptyDimension(), recognition: emptyDimension(), association: emptyDimension(),
+  production: emptyDimension(), combination: emptyDimension()
 });
 
 export function emptyLearnerModel(learnerId: string): LearnerModel {
@@ -47,12 +45,8 @@ export function emptyLearnerModel(learnerId: string): LearnerModel {
 }
 
 export function applyEvidence(model: LearnerModel, evidence: LearningEvidence): LearnerModel {
-  if (evidence.learnerId !== model.learnerId) {
-    throw new Error("Learning evidence learner does not match learner model");
-  }
-  if (model.evidence.some((item) => item.evidenceId === evidence.evidenceId)) {
-    throw new Error(`Duplicate evidence: ${evidence.evidenceId}`);
-  }
+  if (evidence.learnerId !== model.learnerId) throw new Error("Learning evidence learner does not match learner model");
+  if (model.evidence.some((item) => item.evidenceId === evidence.evidenceId)) throw new Error(`Duplicate evidence: ${evidence.evidenceId}`);
 
   const currentSkill = model.skills[evidence.skillId] ?? emptySkill();
   const currentDimension = currentSkill[evidence.dimension];
@@ -63,9 +57,12 @@ export function applyEvidence(model: LearnerModel, evidence: LearningEvidence): 
   };
   const nextSkill: SkillState = { ...currentSkill, [evidence.dimension]: nextDimension };
 
-  return {
-    learnerId: model.learnerId,
-    skills: { ...model.skills, [evidence.skillId]: nextSkill },
-    evidence: [...model.evidence, evidence]
-  };
+  return { learnerId: model.learnerId, skills: { ...model.skills, [evidence.skillId]: nextSkill }, evidence: [...model.evidence, evidence] };
+}
+
+export function getSkillReadiness(model: LearnerModel, skillId: string, dimension: SkillDimension): SkillReadiness {
+  const state = model.skills[skillId]?.[dimension];
+  if (!state || (state.successes === 0 && state.retries === 0)) return "unseen";
+  // Alpha policy is intentionally simple and centralized here; Session Domain must never recreate it.
+  return state.successes >= 3 && state.successes >= state.retries * 2 ? "ready" : "practicing";
 }
